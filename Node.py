@@ -13,3 +13,7 @@ class Node:
         self.neighbours_index = []
         self.step = 0
         self.visited = False
+        self.come_from_index = None
+
+    def get_index(self):
+        return self.h, self.w

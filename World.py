@@ -15,6 +15,12 @@ class World:
         self.build_node_neighbours()
 
     def build_nodes(self, width, height):
+        """
+        为每一个格子建立一个 Node 对象。
+        :param width: 格子世界宽
+        :param height: 格子世界长
+        :return: None
+        """
         for i in range(height):
             row_nodes = []
             for j in range(width):
@@ -22,11 +28,15 @@ class World:
             self.nodes.append(row_nodes)
 
     def build_node_neighbours(self):
+        """
+        为格子世界中每一个 Node 对象添加邻居。
+        :return: None
+        """
         tmp_nodes = copy.deepcopy(self.nodes)
 
+        """ 在原本的格子世界最外层的四周 padding 一层 None 对象，避免添加邻居时要对边缘特殊点做判断 """
         for i in range(len(tmp_nodes)):
             tmp_nodes[i] = [None] + tmp_nodes[i] + [None]
-
         tmp_nodes.insert(0, [None] * len(tmp_nodes[0]))
         tmp_nodes.append([None] * len(tmp_nodes[0]))
 
@@ -48,39 +58,66 @@ class World:
                     self.nodes[row][col].neighbours_index.append((down_i[0] - 1, down_i[1] - 1))
 
     def get_node(self, index):
+        """
+        根据索引获得地图中的 Node 对象。
+        :param index: (height，weight) 元组
+        :return: Node 对象
+        """
         h, w = index
         return self.nodes[h][w]
 
     def get_all_nodes(self):
         return [node for row_node in self.nodes for node in row_node]
 
+    def load_weights_map(self, weights_map):
+        """
+        载入权重地图，到达每一个节点 Node 的成本值。
+        :param weights_map: 包含每一个节点的到达成本
+        :return: None
+        """
+        for i in range(len(weights_map)):
+            for j in range(len(weights_map[0])):
+                n = self.get_node((i, j))
+                n.weight = weights_map[i][j]
+
     def show_step_map(self):
+        """
+        显示 BFS 算法从起点开始由内层到外层扩展时的扩展次数。
+        :return: None
+        """
         step_map = [[node.step for node in row] for row in self.nodes]
         print("== Step Map ==")
         for row in step_map:
             print(row)
         print("\n")
 
+    def show_weights_map(self):
+        weights_map = [[node.weight for node in row] for row in self.nodes]
+        print("== Weights Map ==")
+        for row in weights_map:
+            print(row)
+        print("\n")
+
     def show_path_map(self, start_node, target_node):
+        """
+        显示寻找到的最短路径，2 代表起点/终点，1 代表路径。
+        :param start_node: 起点
+        :param target_node: 终点
+        :return: None
+        """
         path_map = [[0] * self.grid_width for _ in range(self.grid_height)]
-        current_node = start_node
-        max_step = max(node.step for node in self.get_all_nodes())
+        start_node_index, target_node_index = start_node.get_index(), target_node.get_index()
+        current_node = target_node
 
-        while current_node != target_node or current_node.step == max_step:
-            path_map[current_node.h][current_node.w] = 1
-            min_step = float('inf')
-            optional_index = None
+        while current_node != start_node:
+            current_index = current_node.get_index()
+            """ 路径点用 1 表示 """
+            path_map[current_index[0]][current_index[1]] = 1
+            current_node = self.get_node(current_node.come_from_index)
 
-            for n_index in current_node.neighbours_index:
-                n = self.get_node(n_index)
-                if n.step >= current_node.step:
-                    if n.step < min_step:
-                        optional_index = n_index
-                        min_step = n.step
-
-            if not optional_index:
-                break
-            current_node = self.get_node(optional_index)
+        """ 终点和起点用 2 表示 """
+        path_map[start_node_index[0]][start_node_index[1]] = 2
+        path_map[target_node_index[0]][target_node_index[1]] = 2
 
         print("== Path Map ==")
         for row in path_map:
