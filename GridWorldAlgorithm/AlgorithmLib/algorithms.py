@@ -1,4 +1,7 @@
-from World import World
+"""
+@Author: P_k_y
+@Time: 2021/1/19
+"""
 
 
 def find_path_by_bfs(world, start_node, target_node):
@@ -125,21 +128,3 @@ def find_path_by_A_star(world, start_node, target_node, weights_map):
 
     world.show_weights_map()
     world.show_path_map(start_node, target_node)
-
-
-if __name__ == '__main__':
-    world = World(6, 6)
-    start_node = world.get_node((1, 1))
-    target_node = world.get_node((4, 4))
-    weights_map = [
-        [1, 1, 1, 1, 1, 1],
-        [1, 1, 1, 9, 9, 1],
-        [1, 1, 1, 9, 9, 1],
-        [1, 1, 1, 9, 9, 1],
-        [1, 1, 1, 9, 1, 1],
-        [1, 1, 1, 9, 9, 1]
-    ]
-
-    # find_path_by_bfs(world, start_node, target_node)
-    # find_path_by_dijkstra(world, start_node, target_node, weights_map)
-    find_path_by_A_star(world, start_node, target_node, weights_map)

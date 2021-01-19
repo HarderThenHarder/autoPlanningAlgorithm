@@ -2,7 +2,7 @@
 @Author: P_k_y
 @Time: 2021/1/7
 """
-from Node import Node
+from GridWorldAlgorithm.Node import Node
 import copy
 
 
