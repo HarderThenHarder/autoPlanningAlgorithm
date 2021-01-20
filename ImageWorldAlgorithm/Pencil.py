@@ -33,7 +33,7 @@ class Pencil:
             if point[2] != -1:
                 cv2.line(map_array, point[0: 2], vertex_tuple[point[2]][0: 2], (255, 150, 150), 2)
             cv2.imshow("Map Result", map_array)
-            if sleep_time:
+            if sleep_time > 0:
                 cv2.waitKey(sleep_time)
 
         """ 回溯绘制最优路径，找到与目标点最近的点 """
@@ -45,7 +45,7 @@ class Pencil:
                      3)
             point_a_index = point_b_index
             cv2.imshow("Map Result", map_array)
-            if sleep_time:
+            if sleep_time > 0:
                 cv2.waitKey(sleep_time)
 
         cv2.waitKey()
