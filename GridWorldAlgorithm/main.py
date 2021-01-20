@@ -15,6 +15,6 @@ if __name__ == '__main__':
         [1, 1, 1, 9, 9, 1]
     ]
 
-    # find_path_by_bfs(world, start_node, target_node)
+    find_path_by_bfs(world, start_node, target_node)
     # find_path_by_dijkstra(world, start_node, target_node, weights_map)
-    find_path_by_A_star(world, start_node, target_node, weights_map)
+    # find_path_by_A_star(world, start_node, target_node, weights_map)

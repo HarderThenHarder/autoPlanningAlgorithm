@@ -1,12 +1,13 @@
 """
 @Author: P_k_y
 @Time: 2021/1/20
+模拟当 GPS 存在漂移的情况下，判断车辆当前所在的街道，红色小点代表漂移后的GPS，绿色街道代表算法判定车辆目前所处街道。
 """
 
 from GPSDrift.TopologicalMap.Map import Map
 from GPSDrift.Car import Car
 import cv2
-from GPSDrift.algorithoms import find_road_with_drifted_gps
+from GPSDrift.algorithms import find_road_with_drifted_gps
 
 
 if __name__ == '__main__':
@@ -23,7 +24,7 @@ if __name__ == '__main__':
             continue
         else:
             current_gps = car.gps_pos
-            match_road = find_road_with_drifted_gps(car.topo_map, current_gps, last_gps)
+            match_road = find_road_with_drifted_gps(car.topo_map, current_gps, car.gps_history)
             car.topo_map.current_road_plot(match_road)
             last_gps = current_gps
 

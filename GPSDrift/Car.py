@@ -15,8 +15,9 @@ class Car:
         self.current_node = start_node
         self.velocity = 3
         self.pos = np.array([self.topo_map.nodes[self.current_node]["x"], self.topo_map.nodes[self.current_node]["y"]])
-        self.gps_drift = 1
-        self.gps_pos = self.pos + np.random.randint(0, self.gps_drift, size=2)
+        self.gps_drift = 10
+        self.gps_drift_random = 5   # GPS 随机噪声越大，判断当前所在 road 就越不准确
+        self.gps_pos = self.pos + self.gps_drift + np.random.randint(0, self.gps_drift_random, size=2)
         self.gps_history = [self.gps_pos]
         self.target_node = None
 
@@ -25,7 +26,7 @@ class Car:
         target_pos = np.array([target_node["x"], target_node["y"]])
         theta = math.atan2(target_pos[1] - self.pos[1], target_pos[0] - self.pos[0])
         self.pos = self.pos + self.velocity * np.array([math.cos(theta), math.sin(theta)])
-        self.gps_pos = self.pos + np.random.randint(0, self.gps_drift, size=2)
+        self.gps_pos = self.pos + self.gps_drift + np.random.randint(0, self.gps_drift_random, size=2)
         self.gps_history.append(self.gps_pos)
 
         if np.sqrt(np.sum(np.square(self.pos - target_pos))) < 5:
@@ -33,6 +34,7 @@ class Car:
             self.target_node = None
 
     def car_plot(self):
+        """ 绘制车辆当前位置以及车辆历史 GPS 位置 """
         cv2.circle(self.topo_map.bg, (int(self.pos[0]), int(self.pos[1])), 5, (200, 0, 200), 5)
         for pos in self.gps_history:
             cv2.circle(self.topo_map.bg, (int(pos[0]), int(pos[1])), 1, (20, 20, 200), 1)
