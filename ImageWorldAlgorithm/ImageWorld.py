@@ -14,6 +14,7 @@ class ImageWorld:
         except IOError:
             raise IOError("[ERROR] Can't Open File %s!" % map_image_file_name)
         img = cv2.resize(img, (width, height))
+        self.map_origin = img
         image_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         _, img_binary = cv2.threshold(image_gray, 127, 255, cv2.THRESH_BINARY)
         self.map_array = img_binary
