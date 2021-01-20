@@ -1,0 +1,43 @@
+{
+  "width": 600,
+
+  "height": 400,
+
+  "nodes":  {
+      "A": {"name": "A", "x": 20, "y": 50},
+      "B": {"name": "B", "x": 100, "y": 70},
+      "C": {"name": "C", "x": 220, "y": 90},
+      "D": {"name": "D", "x": 410, "y": 110},
+
+      "E": {"name": "E", "x": 220, "y": 170},
+      "F": {"name": "F", "x": 500, "y": 170},
+
+      "G": {"name": "G", "x": 20, "y": 280},
+      "H": {"name": "H", "x": 220, "y": 280},
+      "I": {"name": "I", "x": 410, "y": 280},
+
+      "J": {"name": "J", "x": 100, "y": 370},
+      "K": {"name": "K", "x": 350, "y": 330},
+      "L": {"name": "L", "x": 550, "y": 370}
+    },
+
+  "roads":  {
+      "AB": {"name": "AB"},
+      "BC": {"name": "BC"},
+      "CD": {"name": "CD"},
+
+      "BG": {"name": "BG"},
+      "CE": {"name": "CE"},
+      "EH": {"name": "EH"},
+      "DF": {"name": "DF"},
+      "FI": {"name": "FI"},
+      "EF": {"name": "EF"},
+
+      "GH": {"name": "GH"},
+      "HI": {"name": "HI"},
+      "GJ": {"name": "GJ"},
+      "JK": {"name": "JK"},
+      "IK": {"name": "IK"},
+      "KL": {"name": "KL"}
+    }
+}
