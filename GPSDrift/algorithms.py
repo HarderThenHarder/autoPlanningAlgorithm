@@ -45,10 +45,10 @@ def find_road_with_drifted_gps(topo_map, gps, gps_history, k=2, k_history=6) -> 
         cos_value = 1 if frac_down < 1e-6 else frac_up / frac_down   # 将cos值添加入字典
         cos_value = np.clip(cos_value, -1, 1)
         cos_theta = math.acos(cos_value)
-        cos_theta = cos_theta if cos_theta < math.pi / 2 else math.pi - cos_theta
+        cos_theta = cos_theta if cos_theta < math.pi / 2 else math.pi - cos_theta   # 转换成锐角
         cos_to_road[road] = cos_theta
 
-    """ 车辆行驶方向和道路的cos值越大，代表夹角越小，越符合匹配道路，因此将候选道路的cos值从大到小排序即可 """
+    """ 比较锐角，锐角越小则越符合 """
     match_object = sorted(cos_to_road.items(), key=lambda x: x[1])[0]
     return match_object[0]
 
@@ -77,9 +77,11 @@ def fit_heading(gps_history, k_history):
 
 
 if __name__ == '__main__':
-    history = np.random.randint(1, 10, size=(10, 2))
-    n1, n2 = fit_heading(history, 10)
-    plt.scatter(history[:, 0], history[:, 1], color='r')
-    plt.plot([n1[0], n2[0]], [n1[1], n2[1]])
+    history = np.random.randint(1, 50, size=(100, 2))
+    n1, n2 = fit_heading(history, 100)
+    plt.grid(True, linestyle='--')
+    plt.scatter(history[:, 0], history[:, 1], color='r', label="GPS")
+    plt.plot([n1[0], n2[0]], [n1[1], n2[1]], linewidth=3, label="Fit Heading")
+    plt.legend()
     plt.show()
 
