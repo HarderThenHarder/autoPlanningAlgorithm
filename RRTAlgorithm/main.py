@@ -2,9 +2,9 @@
 @Author: P_k_y
 @Time: 2021/1/19
 """
-from ImageWorldAlgorithm.ImageWorld import ImageWorld
-from ImageWorldAlgorithm.AlgorithmLib.algorithms import find_path_by_rrt
-from ImageWorldAlgorithm.Pencil import Pencil
+from RRTAlgorithm.ImageWorld import ImageWorld
+from RRTAlgorithm.AlgorithmLib.algorithms import find_path_by_rrt
+from RRTAlgorithm.Pencil import Pencil
 
 
 if __name__ == '__main__':

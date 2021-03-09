@@ -5,7 +5,7 @@
 from typing import Tuple
 import numpy as np
 import random
-import ImageWorldAlgorithm.ToolBox as tbx
+import RRTAlgorithm.ToolBox as tbx
 import math
 
 

@@ -22,6 +22,7 @@ class DougalsPeucker:
         def fit(start_point_idx, end_point_idx, points_denoised):
             """
             判断从起点到终点中是否存在需要分割的新点，递归求解。
+            :param points_denoised: 去噪后的点集
             :param start_point_idx: 起始点索引
             :param end_point_idx: 终点索引
             """
