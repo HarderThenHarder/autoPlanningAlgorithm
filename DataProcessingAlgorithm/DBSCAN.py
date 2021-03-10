@@ -31,6 +31,7 @@ class DBSCAN:
     def fit(epsilon, min_neighbor, data):
         """
         将数据集 data 中的所有数据点自适应聚类结果。
+        算法原理：https://blog.dominodatalab.com/topology-and-density-based-clustering/?tdsourcetag=s_pcqq_aiomsg
         :param epsilon: 搜索邻居半径
         :param min_neighbor: 成为单独一类的最小邻居数
         :param data: 数据集
