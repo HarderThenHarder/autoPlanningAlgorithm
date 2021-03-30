@@ -6,7 +6,11 @@
 from geopy.distance import geodesic
 import datetime
 import numpy as np
-import copy
+import math
+
+
+def get_distance(v1, v2):
+    return math.hypot(v1[0] - v2[0], v1[1] - v2[1])
 
 
 def get_hours_from_two_time_string(data_str1, data_str2, fmt="%Y-%m-%d %H:%M:%S"):
@@ -57,19 +61,22 @@ def drop_anormal_point(track_id: int, track_values: dict, anormal_ratio=5, max_s
     return result
 
 
-def remove_stop_points(track_id: int, track_values: dict, min_delta_dist, min_delta_time, min_distance_threshold=1e-5):
+def remove_stop_points(track_id: int, track_values: dict, min_delta_dist, min_delta_time, min_distance_threshold=1e-5,
+                       min_centroid_threshold=1e-5):
     """
     检测出轨迹中的停驻点，返回停住点坐标并将原轨迹点中删除这些停驻点。
     停驻点共两种情况：1. 多个点重合在一个点。2. 多个轨迹点点围绕着某一个点分布（景区点）。
     停住点参考资料：https://www.zhihu.com/people/who-u
+    :param min_centroid_threshold: 判断两个中心点是否为同一个中心点的阈值
     :param min_delta_time: 判断多点围绕的停留点情况时的最小时间间隔（小时）
     :param min_delta_dist: 判断多点围绕的停留点情况时的最小距离间隔（公里）
-    :param min_distance_threshold: 判断多点重合情况时的最大距离间隔。
+    :param min_distance_threshold: 判断多点重合情况时的最大距离间隔
     :param track_id: 该轨迹的id号
     :param track_values: 历史轨迹信息
     :return: （去除停住点后的轨迹，停住点信息）
     """
     stop_points, stop_time_list, result_time_list = [], [], []
+    around_points, around_time_list = [], []
     origin_positions, time_list = track_values["positions"], track_values["time_list"]
 
     if len(origin_positions) < 2:
@@ -89,6 +96,19 @@ def remove_stop_points(track_id: int, track_values: dict, min_delta_dist, min_de
             current_point = origin_positions[i]
             result_time_list.append(time_list[i])
         i += 1
+
+    final_result_points = []
+    # 多点围绕情况的判断
+    for i in range(len(result_points)):
+        for j in range(i+1, len(result_points)):
+            distance = geodesic(result_points[i], result_points[j])
+            if distance > min_delta_dist:
+                delta_time = get_hours_from_two_time_string(time_list[i], time_list[j])
+                if delta_time > min_delta_time:
+                    points_sequence = np.array(result_points[i:j+1])
+                    centroid = [np.mean(points_sequence[:, 0]), np.mean(points_sequence[:, 1])]
+                    if len(around_points) == 0 or get_distance(centroid, around_points[-1]) > min_centroid_threshold:
+                        around_points.append(centroid)
 
     result = {track_id: {'positions': result_points, 'time_list': result_time_list, 'mean_speed': track_values['mean_speed']}}
     stop_points_info = {'stop_points': stop_points, 'stop_time_list': stop_time_list}

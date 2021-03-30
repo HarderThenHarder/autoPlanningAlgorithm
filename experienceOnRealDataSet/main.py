@@ -5,7 +5,6 @@
 
 import pandas as pd
 import osmnx as ox
-import numpy as np
 import matplotlib.pyplot as plt
 from MapPencil import MapPencil
 import random
