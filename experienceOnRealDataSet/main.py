@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 from MapPencil import MapPencil
 import random
 from Algorithms import *
+import numpy as np
 
 
 def plot_graph(trajectories):
@@ -16,7 +17,7 @@ def plot_graph(trajectories):
     # TODO 利用所有点之间的最大距离作为dist
     position_list = [v['positions'] for v in list(trajectories.values())]
     all_points = np.concatenate(position_list)
-    G = ox.graph_from_point(all_points[0], dist=1000)
+    G = ox.graph_from_point(all_points[0], dist=100)
 
     # ox.plot_graph(G)
     # plt.show()
@@ -30,13 +31,16 @@ def plot_graph(trajectories):
         drop_anormal_points_result = drop_anormal_point(track_id, track_values)  # 去掉异常轨迹点
         track_positions = drop_anormal_points_result[track_id]['positions']
 
-        remove_stop_points_result, stop_points_info = remove_stop_points(track_id, drop_anormal_points_result[track_id],
-                                                                         min_delta_dist=0.05,
-                                                                         min_delta_time=0.3)      # 去掉停驻轨迹点
+        remove_stop_points_result, stop_points_info, around_points_info = remove_stop_points(track_id, drop_anormal_points_result[track_id],
+                                                                                             min_delta_dist=0.05,
+                                                                                             min_delta_time=0.3)      # 去掉停驻轨迹点
         track_positions = remove_stop_points_result[track_id]['positions']
+
         # 绘制停驻点
         for i, pos in enumerate(stop_points_info['stop_points']):
             MapPencil.draw_marker(pos, m1, popup='Stop Points[%d]\n(%f, %f)' % (i, pos[0], pos[1]))
+        for i, pos in enumerate(around_points_info['around_points']):
+            MapPencil.draw_marker(pos, m1, popup='Around Points[%d]\n(%f, %f)' % (i, pos[0], pos[1]), color='green')
 
         random_color = hex(random.randint(0, 16 ** 6))[2:]
         random_color = random_color.zfill(6)

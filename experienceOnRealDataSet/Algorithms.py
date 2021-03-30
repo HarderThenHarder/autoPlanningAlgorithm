@@ -75,9 +75,9 @@ def remove_stop_points(track_id: int, track_values: dict, min_delta_dist, min_de
     :param track_values: 历史轨迹信息
     :return: （去除停住点后的轨迹，停住点信息）
     """
-    stop_points, stop_time_list, result_time_list = [], [], []
-    around_points, around_time_list = [], []
     origin_positions, time_list = track_values["positions"], track_values["time_list"]
+    stop_points, stop_time_list, result_time_list = [], [], [time_list[0]]
+    around_points, around_time_list = [], []
 
     if len(origin_positions) < 2:
         return {track_id: track_values}
@@ -97,7 +97,7 @@ def remove_stop_points(track_id: int, track_values: dict, min_delta_dist, min_de
             result_time_list.append(time_list[i])
         i += 1
 
-    final_result_points = []
+    final_result_points, final_result_time_list = [], []
     # 多点围绕情况的判断
     for i in range(len(result_points)):
         for j in range(i+1, len(result_points)):
@@ -109,11 +109,17 @@ def remove_stop_points(track_id: int, track_values: dict, min_delta_dist, min_de
                     centroid = [np.mean(points_sequence[:, 0]), np.mean(points_sequence[:, 1])]
                     if len(around_points) == 0 or get_distance(centroid, around_points[-1]) > min_centroid_threshold:
                         around_points.append(centroid)
+                        break
+                elif result_points[j] not in final_result_points:
+                    final_result_points.append(result_points[j])
+                    final_result_time_list.append(result_time_list[j])
+                    break
 
-    result = {track_id: {'positions': result_points, 'time_list': result_time_list, 'mean_speed': track_values['mean_speed']}}
+    result = {track_id: {'positions': final_result_points, 'time_list': final_result_time_list, 'mean_speed': track_values['mean_speed']}}
     stop_points_info = {'stop_points': stop_points, 'stop_time_list': stop_time_list}
+    around_points_info = {'around_points': around_points}
 
-    return result, stop_points_info
+    return result, stop_points_info, around_points_info
 
 
 if __name__ == '__main__':
