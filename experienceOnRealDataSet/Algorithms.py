@@ -76,13 +76,12 @@ def remove_stop_points(track_id: int, track_values: dict, min_delta_dist, min_de
     :return: （去除停住点后的轨迹，停住点信息）
     """
     origin_positions, time_list = track_values["positions"], track_values["time_list"]
-    stop_points, stop_time_list, result_time_list = [], [], [time_list[0]]
-    around_points, around_time_list = [], []
 
     if len(origin_positions) < 2:
         return {track_id: track_values}
 
-    result_points = [origin_positions[0]]
+    stop_points, stop_time_list, time_list_without_stop_points, points_without_stop_points = [], [], [time_list[0]], [origin_positions[0]]
+
     i, current_point = 1, origin_positions[0]
 
     # 遍历轨迹，寻找出相邻重合的重合点，从原轨迹中去掉这些重复点
@@ -92,32 +91,48 @@ def remove_stop_points(track_id: int, track_values: dict, min_delta_dist, min_de
             stop_points.append(origin_positions[i])
             stop_time_list.append(time_list[i])
         else:
-            result_points.append(origin_positions[i])
+            points_without_stop_points.append(origin_positions[i])
             current_point = origin_positions[i]
-            result_time_list.append(time_list[i])
+            time_list_without_stop_points.append(time_list[i])
         i += 1
 
-    final_result_points, final_result_time_list = [], []
-    # 多点围绕情况的判断
-    for i in range(len(result_points)):
-        for j in range(i+1, len(result_points)):
-            distance = geodesic(result_points[i], result_points[j])
-            if distance > min_delta_dist:
-                delta_time = get_hours_from_two_time_string(time_list[i], time_list[j])
-                if delta_time > min_delta_time:
-                    points_sequence = np.array(result_points[i:j+1])
-                    centroid = [np.mean(points_sequence[:, 0]), np.mean(points_sequence[:, 1])]
-                    if len(around_points) == 0 or get_distance(centroid, around_points[-1]) > min_centroid_threshold:
-                        around_points.append(centroid)
-                        break
-                elif result_points[j] not in final_result_points:
-                    final_result_points.append(result_points[j])
-                    final_result_time_list.append(result_time_list[j])
-                    break
+    # 进一步的，多点围绕情况的判断
+    points_without_around_points, time_list_without_around_points = [points_without_stop_points[0]], [time_list_without_stop_points[0]]
+    around_points_centroids, around_time_list = [], []
 
-    result = {track_id: {'positions': final_result_points, 'time_list': final_result_time_list, 'mean_speed': track_values['mean_speed']}}
+    i = 0
+    # 遍历所有轨迹点，将点多个点围绕的情况替换成其中心点
+    while i < len(points_without_stop_points):
+        j = i + 1
+        # 从 i+1 开始，一直向后遍历，找到距离大于最小阈值的最近轨迹点
+        while j < len(points_without_stop_points):
+            distance = geodesic(points_without_stop_points[i], points_without_stop_points[j])
+            # 若当前点（j点）到i点距离大于预设判断距离，则对该轨迹片段进行类型判断
+            if distance >= min_delta_dist:
+                # 求从i点到最近大于距离阈值点j共消耗的时间
+                delta_time = get_hours_from_two_time_string(time_list_without_stop_points[i], time_list_without_stop_points[j])
+                # 若时间大于预设停留时间，则代表该轨迹片段为围绕轨迹，替换这些轨迹点为中心围绕点
+                if delta_time > min_delta_time:
+                    points_sequence = np.array(points_without_stop_points[i:j+1])
+                    centroid = [np.mean(points_sequence[:, 0]), np.mean(points_sequence[:, 1])]
+                    # 只有该中心点与之前拟合出的中心点隔的比较远，才将这个新的中心点加入中心点列表中
+                    if len(around_points_centroids) == 0 or get_distance(centroid, around_points_centroids[-1]) > min_centroid_threshold:
+                        around_points_centroids.append(centroid)
+                        points_without_around_points.append(centroid)
+                        time_list_without_around_points.append(time_list_without_stop_points[j])
+                # 若时间小于预设停留时间，则代表该轨迹片段不是围绕轨迹，保留该轨迹段中的所有轨迹点
+                else:
+                    points_without_around_points.extend(points_without_stop_points[i+1:j+1])
+                    time_list_without_around_points.extend(time_list_without_stop_points[i+1:j+1])
+                i = j
+                break
+            j += 1
+        if j == len(points_without_stop_points):
+            break
+
+    result = {track_id: {'positions': points_without_around_points, 'time_list': time_list_without_around_points, 'mean_speed': track_values['mean_speed']}}
     stop_points_info = {'stop_points': stop_points, 'stop_time_list': stop_time_list}
-    around_points_info = {'around_points': around_points}
+    around_points_info = {'around_points': around_points_centroids}
 
     return result, stop_points_info, around_points_info
 

@@ -17,7 +17,7 @@ def plot_graph(trajectories):
     # TODO 利用所有点之间的最大距离作为dist
     position_list = [v['positions'] for v in list(trajectories.values())]
     all_points = np.concatenate(position_list)
-    G = ox.graph_from_point(all_points[0], dist=100)
+    G = ox.graph_from_point(all_points[0], dist=1000)
 
     # ox.plot_graph(G)
     # plt.show()
@@ -28,12 +28,12 @@ def plot_graph(trajectories):
     for track_id, track_values in trajectories.items():
 
         # origin_track_positions = track_values['positions']
-        drop_anormal_points_result = drop_anormal_point(track_id, track_values)  # 去掉异常轨迹点
+        drop_anormal_points_result = drop_anormal_point(track_id, track_values, max_speed_threshold=150)  # 去掉异常轨迹点
         track_positions = drop_anormal_points_result[track_id]['positions']
 
         remove_stop_points_result, stop_points_info, around_points_info = remove_stop_points(track_id, drop_anormal_points_result[track_id],
-                                                                                             min_delta_dist=0.05,
-                                                                                             min_delta_time=0.3)      # 去掉停驻轨迹点
+                                                                                             min_delta_dist=0.5,
+                                                                                             min_delta_time=0.8)      # 去掉停驻轨迹点
         track_positions = remove_stop_points_result[track_id]['positions']
 
         # 绘制停驻点
