@@ -7,6 +7,7 @@ from geopy.distance import geodesic
 import datetime
 import numpy as np
 import math
+from Utils import Utils
 
 
 def get_distance(v1, v2):
@@ -51,7 +52,7 @@ def drop_anormal_point(track_id: int, track_values: dict, anormal_ratio=5, max_s
     for i in range(1, len(origin_positions)):
         distance = geodesic(origin_positions[i-1], origin_positions[i]).km
         hours_used = get_hours_from_two_time_string(time_list[i-1], time_list[i])
-        speed = distance / hours_used
+        speed = max_speed_threshold if hours_used == 0 else distance / hours_used
         if speed < max_speed_threshold:
             result_positions.append(origin_positions[i])
             result_time_list.append(time_list[i])
@@ -78,7 +79,9 @@ def remove_stop_points(track_id: int, track_values: dict, min_delta_dist, min_de
     origin_positions, time_list = track_values["positions"], track_values["time_list"]
 
     if len(origin_positions) < 2:
-        return {track_id: track_values}
+        stop_points_info = {'stop_points': [], 'stop_time_list': []}
+        around_points_info = {'around_points': []}
+        return {track_id: track_values}, stop_points_info, around_points_info
 
     stop_points, stop_time_list, time_list_without_stop_points, points_without_stop_points = [], [], [time_list[0]], [origin_positions[0]]
 
@@ -96,45 +99,130 @@ def remove_stop_points(track_id: int, track_values: dict, min_delta_dist, min_de
             time_list_without_stop_points.append(time_list[i])
         i += 1
 
-    # 进一步的，多点围绕情况的判断
-    points_without_around_points, time_list_without_around_points = [points_without_stop_points[0]], [time_list_without_stop_points[0]]
-    around_points_centroids, around_time_list = [], []
+    # 掐掉首尾点，在进行围绕点判断是不需要对首尾点进行判断
+    start_point, end_point = points_without_stop_points[0], points_without_stop_points[-1]
+    points_without_stop_points = points_without_stop_points[1:-1]
+    start_time, end_time = time_list_without_stop_points[0], time_list_without_stop_points[-1]
+    time_list_without_stop_points = time_list_without_stop_points[1:-1]
 
-    i = 0
-    # 遍历所有轨迹点，将点多个点围绕的情况替换成其中心点
-    while i < len(points_without_stop_points):
-        j = i + 1
-        # 从 i+1 开始，一直向后遍历，找到距离大于最小阈值的最近轨迹点
-        while j < len(points_without_stop_points):
-            distance = geodesic(points_without_stop_points[i], points_without_stop_points[j])
-            # 若当前点（j点）到i点距离大于预设判断距离，则对该轨迹片段进行类型判断
-            if distance >= min_delta_dist:
-                # 求从i点到最近大于距离阈值点j共消耗的时间
-                delta_time = get_hours_from_two_time_string(time_list_without_stop_points[i], time_list_without_stop_points[j])
-                # 若时间大于预设停留时间，则代表该轨迹片段为围绕轨迹，替换这些轨迹点为中心围绕点
-                if delta_time > min_delta_time:
-                    points_sequence = np.array(points_without_stop_points[i:j+1])
-                    centroid = [np.mean(points_sequence[:, 0]), np.mean(points_sequence[:, 1])]
-                    # 只有该中心点与之前拟合出的中心点隔的比较远，才将这个新的中心点加入中心点列表中
-                    if len(around_points_centroids) == 0 or get_distance(centroid, around_points_centroids[-1]) > min_centroid_threshold:
-                        around_points_centroids.append(centroid)
-                        points_without_around_points.append(centroid)
-                        time_list_without_around_points.append(time_list_without_stop_points[j])
-                # 若时间小于预设停留时间，则代表该轨迹片段不是围绕轨迹，保留该轨迹段中的所有轨迹点
-                else:
-                    points_without_around_points.extend(points_without_stop_points[i+1:j+1])
-                    time_list_without_around_points.extend(time_list_without_stop_points[i+1:j+1])
-                i = j
+    # 进一步的，多点围绕情况的判断
+    around_points_centroids, around_time_list = [], []
+    points_without_around_points, time_list_without_around_points = [], []
+
+    if len(points_without_stop_points) > 0:
+        points_without_around_points, time_list_without_around_points = [points_without_stop_points[0]], [time_list_without_stop_points[0]]
+
+        i = 0
+        # 遍历所有轨迹点，将点多个点围绕的情况替换成其中心点
+        while i < len(points_without_stop_points):
+            j = i + 1
+            # 从 i+1 开始，一直向后遍历，找到距离大于最小阈值的最近轨迹点
+            while j < len(points_without_stop_points):
+                distance = geodesic(points_without_stop_points[i], points_without_stop_points[j])
+                # 若当前点（j点）到i点距离大于预设判断距离，则对该轨迹片段进行类型判断
+                if distance >= min_delta_dist:
+                    # 求从i点到最近大于距离阈值点j共消耗的时间
+                    delta_time = get_hours_from_two_time_string(time_list_without_stop_points[i], time_list_without_stop_points[j])
+                    # 若时间大于预设停留时间，则代表该轨迹片段为围绕轨迹，替换这些轨迹点为中心围绕点
+                    if delta_time > min_delta_time:
+                        points_sequence = np.array(points_without_stop_points[i:j+1])
+                        centroid = [np.mean(points_sequence[:, 0]), np.mean(points_sequence[:, 1])]
+                        # 只有该中心点与之前拟合出的中心点隔的比较远，才将这个新的中心点加入中心点列表中
+                        if len(around_points_centroids) == 0 or get_distance(centroid, around_points_centroids[-1]) > min_centroid_threshold:
+                            around_points_centroids.append(centroid)
+                            points_without_around_points.append(centroid)
+                            time_list_without_around_points.append(time_list_without_stop_points[j])
+                    # 若时间小于预设停留时间，则代表该轨迹片段不是围绕轨迹，保留该轨迹段中的所有轨迹点
+                    else:
+                        points_without_around_points.extend(points_without_stop_points[i+1:j+1])
+                        time_list_without_around_points.extend(time_list_without_stop_points[i+1:j+1])
+                    i = j
+                    break
+                j += 1
+            if j == len(points_without_stop_points):
                 break
-            j += 1
-        if j == len(points_without_stop_points):
-            break
+
+    # 将首尾点加回到轨迹中
+    points_without_around_points.insert(0, start_point)
+    points_without_around_points.append(end_point)
+    time_list_without_around_points.insert(0, start_time)
+    time_list_without_around_points.append(end_time)
 
     result = {track_id: {'positions': points_without_around_points, 'time_list': time_list_without_around_points, 'mean_speed': track_values['mean_speed']}}
     stop_points_info = {'stop_points': stop_points, 'stop_time_list': stop_time_list}
     around_points_info = {'around_points': around_points_centroids}
 
     return result, stop_points_info, around_points_info
+
+
+def smooth_trajectory(track_id, track_values, fit_threshold):
+    """
+    通过道格拉斯-普克算法对轨迹点进行平滑处理。
+    :param track_id:
+    :param track_values:
+    :param fit_threshold:
+    :return:
+    """
+    pass
+
+
+def get_trajectory_segments(track_values, segment_time=1, segment_angle=60, segment_distance=1):
+    """
+    根据时间和转角对一条轨迹进行分段。
+    :param track_values: 轨迹信息
+    :param segment_distance: 分段距离阈值，若两点间距离大于segment_distance，则进行分段
+    :param segment_time: 分段时间阈值，若间隔时间大于segment_time，则进行分段
+    :param segment_angle: 分段转角阈值，若转角读书大于segment_angle，则进行分段
+    :return: 分段字典
+    """
+    origin_positions, time_list = track_values["positions"], track_values["time_list"]
+
+    if len(origin_positions) <= 2:
+        return {"segments": origin_positions, "segments_time": time_list}
+
+    segments, segments_time = [], []
+    temp_segment, temp_time_list = [], []
+
+    for i in range(len(origin_positions)):
+
+        # 若该 segment 中轨迹点数目还不足2个，则填满2个后再计算
+        if len(temp_segment) < 2:
+            # 若新点和旧点之间的距离大于分割距离，则把旧点给弹出删掉
+            if len(temp_segment) == 1 and geodesic(temp_segment[-1], origin_positions[i]) > segment_distance:
+                temp_segment.pop(0)
+                temp_time_list.pop(0)
+            temp_segment.append(origin_positions[i])
+            temp_time_list.append(time_list[i])
+            continue
+
+        # 求该 segment 中最后两个点形成的 heading
+        relative_pos = Utils.get_relative_pos(temp_segment[-2], temp_segment[-1])
+        temp_heading, _ = Utils.transfer2polar(relative_pos[0], relative_pos[1])
+
+        # 求新点与上一个点形成的 heading 以及从上一点到新点耗费的时间
+        new_relative_pos = Utils.get_relative_pos(temp_segment[-1], origin_positions[i])
+        new_heading, _ = Utils.transfer2polar(new_relative_pos[0], new_relative_pos[1])
+        time_used = get_hours_from_two_time_string(temp_time_list[-1], time_list[i])
+        distance = geodesic(temp_segment[-1], origin_positions[i])
+
+        # 如果转向超过阈值或等待时间超过阈值，则划分为新的一段 segment
+        if abs(new_heading - temp_heading) > math.radians(segment_angle) or time_used > segment_time or distance > segment_distance:
+            segments.append(temp_segment)
+            segments_time.append(temp_time_list)
+            temp_segment = [origin_positions[i]]
+            temp_time_list = [time_list[i]]
+        # 否则，将该点加入到当前轨迹段中
+        else:
+            temp_segment.append(origin_positions[i])
+            temp_time_list.append(time_list[i])
+
+    if len(temp_segment):
+        segments.append(temp_segment)
+        segments_time.append(temp_time_list)
+
+    result = {"segments": segments, "segments_time": segment_time}
+
+    return result
 
 
 if __name__ == '__main__':

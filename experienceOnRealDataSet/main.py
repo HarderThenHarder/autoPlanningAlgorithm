@@ -12,6 +12,64 @@ from Algorithms import *
 import numpy as np
 
 
+def plot_trajectory(track_positions, map_obj, track_id):
+    """
+    输入一条轨迹信息，绘制轨迹的起点、终点以及轨迹线条。
+    :param track_positions: 轨迹点信息
+    :param map_obj: 地图对象
+    :param track_id: 该条轨迹的 id
+    :return: None
+    """
+    # 随机生成轨迹颜色
+    random_color = hex(random.randint(0, 16 ** 6))[2:]
+    random_color = random_color.zfill(6)
+
+    # 绘制起始点，轨迹线条
+    # MapPencil.draw_marker(track_positions[0], map_obj, popup='[ID %d]Start Point' % track_id, color='red')
+    # MapPencil.draw_marker(track_positions[-1], map_obj, popup='[ID %d]End Point' % track_id, color='red')
+    MapPencil.draw_line(track_positions, map_obj, opacity=0.6, color="#%s" % random_color, weight=6)
+
+    # 绘制轨迹点
+    for i, pos in enumerate(track_positions):
+        MapPencil.draw_point(pos, map_obj, opacity=0.8, popup="[Track.ID %d]location[%d]\n(%f, %f)" % (track_id, i, pos[0], pos[1]),
+                             color="#%s" % random_color)
+
+
+def plot_stop_marker(stop_points_info, around_points_info, map_obj):
+    """
+    绘制一条轨迹上的停留点信息，包括多点重合停留点 和 多点围绕停留点。
+    :param stop_points_info: 停留点信息字典
+    :param around_points_info: 围绕点信息字典
+    :param map_obj: 地图对象
+    :return: None
+    """
+    # 绘制停驻点
+    for i, pos in enumerate(stop_points_info['stop_points']):
+        MapPencil.draw_marker(pos, map_obj, popup='Stop Points[%d]\n(%f, %f)' % (i, pos[0], pos[1]))
+    for i, pos in enumerate(around_points_info['around_points']):
+        MapPencil.draw_marker(pos, map_obj, popup='Around Points[%d]\n(%f, %f)' % (i, pos[0], pos[1]), color='green')
+
+
+def plot_segments(segments, map_obj, track_id):
+    """
+    可视化分段后的轨迹图。
+    :param track_id: 该条分段属于的轨迹的ID
+    :param map_obj: 地图对象
+    :param segments: 分段轨迹列表
+    :return: None
+    """
+    for seg_id, seg in enumerate(segments):
+        # 当且仅当轨迹段中轨迹点个数大于 3 个时才进行绘制
+        if len(seg) >= 3:
+            random_color = hex(random.randint(0, 16 ** 6))[2:]
+            random_color = random_color.zfill(6)
+            MapPencil.draw_line(seg, map_obj, opacity=0.6, color="#%s" % random_color, weight=6)
+
+            # 绘制轨迹点
+            for i, pos in enumerate(seg):
+                MapPencil.draw_point(pos, map_obj, opacity=0.8, popup="[Track.ID %d][Seg.ID %d]location[%d]\n(%f, %f)" % (track_id, seg_id, i, pos[0], pos[1]), color="#%s" % random_color)
+
+
 def plot_graph(trajectories):
     # 求出所有gps点的中心点坐标，获取中心点坐标周围的地图数据
     # TODO 利用所有点之间的最大距离作为dist
@@ -26,33 +84,25 @@ def plot_graph(trajectories):
 
     # 所有轨迹绘制，坐标点，轨迹线路，终点起点等
     for track_id, track_values in trajectories.items():
-
-        # origin_track_positions = track_values['positions']
-        drop_anormal_points_result = drop_anormal_point(track_id, track_values, max_speed_threshold=150)  # 去掉异常轨迹点
-        track_positions = drop_anormal_points_result[track_id]['positions']
-
+        # 去掉异常轨迹点
+        drop_anormal_points_result = drop_anormal_point(track_id, track_values, max_speed_threshold=150)
+        # 去掉停驻轨迹点
         remove_stop_points_result, stop_points_info, around_points_info = remove_stop_points(track_id, drop_anormal_points_result[track_id],
+                                                                                             min_distance_threshold=1e-5,
                                                                                              min_delta_dist=0.5,
-                                                                                             min_delta_time=0.8)      # 去掉停驻轨迹点
-        track_positions = remove_stop_points_result[track_id]['positions']
+                                                                                             min_delta_time=0.8)
+        # 绘制停留点
+        # plot_stop_marker(stop_points_info, around_points_info, m1)
 
-        # 绘制停驻点
-        for i, pos in enumerate(stop_points_info['stop_points']):
-            MapPencil.draw_marker(pos, m1, popup='Stop Points[%d]\n(%f, %f)' % (i, pos[0], pos[1]))
-        for i, pos in enumerate(around_points_info['around_points']):
-            MapPencil.draw_marker(pos, m1, popup='Around Points[%d]\n(%f, %f)' % (i, pos[0], pos[1]), color='green')
+        # 进行轨迹分段
+        segments_result = get_trajectory_segments(remove_stop_points_result[track_id], segment_angle=90, segment_distance=0.5)
+        segments, segments_time = segments_result["segments"], segments_result["segments_time"]
 
-        random_color = hex(random.randint(0, 16 ** 6))[2:]
-        random_color = random_color.zfill(6)
+        # 绘制分段结果
+        plot_segments(segments, m1, track_id)
 
-        # 绘制起始点，轨迹线条
-        MapPencil.draw_marker(track_positions[0], m1, popup='[ID %d]Start Point' % track_id, color='red')
-        MapPencil.draw_marker(track_positions[-1], m1, popup='[ID %d]End Point' % track_id, color='red')
-        MapPencil.draw_line(track_positions, m1, opacity=0.6, color="#%s" % random_color, weight=6)
-
-        # 绘制轨迹点
-        for i, pos in enumerate(track_positions):
-            MapPencil.draw_point(pos, m1, opacity=0.8, popup="location[%d]\n(%f, %f)" % (i, pos[0], pos[1]))
+        # 绘制完整轨迹
+        # plot_trajectory(remove_stop_points_result[track_id]['positions'], m1, track_id)
 
     filepath = "gps_data_visualize.html"
     m1.save(filepath)
@@ -112,8 +162,8 @@ if __name__ == '__main__':
     summary_file_name = 'datasets/GPS Trajectory/go_track_tracks.csv'
     trajectories = parse_csv_to_trajectory_dict(position_file_name, summary_file_name, top_k=-1)
 
-    t = {58: trajectories[58]}
+    # t = {58: trajectories[58]}
+    # plot_graph(t)
 
-    plot_graph(t)
-    # plot_graph(trajectories)
+    plot_graph(trajectories)
     # plot_data(trajectories)
