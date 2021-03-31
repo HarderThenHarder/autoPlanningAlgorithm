@@ -108,6 +108,40 @@ def plot_graph(trajectories):
     m1.save(filepath)
 
 
+def plot_corner_by_cluster(trajectories):
+    """
+    根据轨迹信息挖掘出路口点。
+    :param trajectories: 轨迹信息
+    :return: None
+    """
+    position_list = [v['positions'] for v in list(trajectories.values())]
+    all_points = np.concatenate(position_list)
+    G = ox.graph_from_point(all_points[0], dist=1000)
+
+    ox.plot_graph(G)
+    plt.show()
+
+    all_segments = []
+    # 得到所有轨迹的分段结果
+    for track_id, track_values in trajectories.items():
+        # 去掉异常轨迹点
+        drop_anormal_points_result = drop_anormal_point(track_id, track_values, max_speed_threshold=150)
+        # 去掉停驻轨迹点
+        remove_stop_points_result, stop_points_info, around_points_info = remove_stop_points(track_id,
+                                                                                             drop_anormal_points_result[
+                                                                                                 track_id],
+                                                                                             min_distance_threshold=1e-5,
+                                                                                             min_delta_dist=0.5,
+                                                                                             min_delta_time=0.8)
+        # 进行轨迹分段
+        segments_result = get_trajectory_segments(remove_stop_points_result[track_id], segment_angle=90,
+                                                  segment_distance=0.5)
+        segments, segments_time = segments_result["segments"], segments_result["segments_time"]
+        all_segments.extend(segments)
+
+    a = 1
+
+
 def plot_data(trajectories):
     all_points = np.concatenate(list(trajectories.values()))
     centroid_point = (np.mean(all_points[:, 0]), np.mean(all_points[:, 1]))
@@ -165,5 +199,6 @@ if __name__ == '__main__':
     # t = {58: trajectories[58]}
     # plot_graph(t)
 
-    plot_graph(trajectories)
+    # plot_graph(trajectories)
+    plot_corner_by_cluster(trajectories)
     # plot_data(trajectories)
