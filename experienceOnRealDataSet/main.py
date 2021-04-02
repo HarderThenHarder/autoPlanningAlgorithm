@@ -10,6 +10,7 @@ from MapPencil import MapPencil
 import random
 from Algorithms import *
 import numpy as np
+from Constance import *
 
 
 def plot_trajectory(track_positions, map_obj, track_id):
@@ -108,6 +109,91 @@ def plot_graph(trajectories):
     m1.save(filepath)
 
 
+def plot_grid(left_up_point, right_bottom_point, grid_size, map_obj):
+    """
+    将指定区域按照规定大小进行网格切割。
+    :param left_up_point: 规定区域左上角点
+    :param right_bottom_point: 规定区域右下角点
+    :param grid_size: 网格边长（m）
+    :param map_obj: 地图对象
+    :return: None
+    """
+    delta_coord = grid_size * meter2coord
+
+    latitude, longitude = left_up_point[0], left_up_point[1]
+    while latitude > right_bottom_point[0]:
+        MapPencil.draw_line([(latitude, left_up_point[1]), (latitude, right_bottom_point[1])], map_obj, color='red', weight=1)
+        latitude -= delta_coord
+
+    while longitude < right_bottom_point[1]:
+        MapPencil.draw_line([(left_up_point[0], longitude), (right_bottom_point[0], longitude)], map_obj, color='red', weight=1)
+        longitude += delta_coord
+
+
+def plot_points_with_velocity(points_with_velocity, map_obj):
+    """
+    绘制所有点，包括其当前速度方向。
+    :param map_obj: 地图对象
+    :param points_with_velocity: [{'location': [x, y], 'velocity': [vx, vy]}, ...]
+    :return: None
+    """
+    for point in points_with_velocity:
+        location = point['location']
+        velocity = point['velocity']
+        MapPencil.draw_point(location, map_obj)
+        scale = 0.0001
+        next_point = [location[0] + velocity[0] * scale, location[1] + velocity[1] * scale]
+        MapPencil.draw_line([location, next_point], map_obj, weight=1, opacity=0.5)
+
+
+def plot_points_in_which_grid(grid_points_struct, map_obj):
+    """
+    将不同grid中的点按照不同颜色绘制出来。
+    :param grid_points_struct: 网格-点结构体
+    :param map_obj: 地图对象
+    :return: None
+    """
+    for i in range(len(grid_points_struct)):
+        for j in range(len(grid_points_struct[0])):
+            random_color = hex(random.randint(0, 16 ** 6))[2:]
+            random_color = random_color.zfill(6)
+            for point in grid_points_struct[i][j]:
+                MapPencil.draw_point(point['location'], map_obj, popup='(%d, %d)' % (i, j), color="#%s" % random_color)
+
+
+def plot_points_with_cluster_label(grid_points_struct_with_labels, map_obj, left_up_point, grid_size):
+    """
+    根据速度方向对每一个网格内的路径点进行聚类，将不同label的点用不同颜色绘制。
+    :param grid_size: 网格宽度（m）
+    :param left_up_point: 指定区域左上角坐标
+    :param grid_points_struct_with_labels: 带有点分类标签的网格-点结构体
+    :param map_obj: 地图对象
+    :return: None
+    """
+    for i in range(len(grid_points_struct_with_labels)):
+        for j in range(len(grid_points_struct_with_labels[0])):
+
+            if len(grid_points_struct_with_labels[i][j]) == 0:
+                continue
+
+            # 统计该格子内数据点一共被聚成了多少类，并为每一类随机分配一个颜色
+            labels_in_this_grid = [point['label'] for point in grid_points_struct_with_labels[i][j]]
+            labels_num = max(labels_in_this_grid) + 2   # 还需要考虑-1类别
+            label_color_list = [hex(random.randint(0, 16 ** 6))[2:].zfill(6) for _ in range(labels_num)]
+
+            # 若聚类结果大于3个（但包含异常值，所以判断时要 > 4），则该格子中可能存在路口，绘制矩形框
+            if labels_num >= 3:
+                grid_left_up, grid_right_down = get_grid_location_by_index(i, j, grid_size, left_up_point)
+                MapPencil.draw_rectangle(grid_left_up, grid_right_down, map_obj)
+
+            for point in grid_points_struct_with_labels[i][j]:
+                label, location, velocity = point['label'], point['location'], point['velocity']
+                MapPencil.draw_point(location, map_obj, popup='Grid[%d, %d]: Label [%d]' % (i, j, label), color="#%s" % label_color_list[label])
+                scale = 0.00001
+                next_point = [location[0] + velocity[0] * scale, location[1] + velocity[1] * scale]
+                MapPencil.draw_line([location, next_point], map_obj, weight=1, opacity=0.5, color="#%s" % label_color_list[label])
+
+
 def plot_corner_by_cluster(trajectories):
     """
     根据轨迹信息挖掘出路口点。
@@ -117,11 +203,9 @@ def plot_corner_by_cluster(trajectories):
     position_list = [v['positions'] for v in list(trajectories.values())]
     all_points = np.concatenate(position_list)
     G = ox.graph_from_point(all_points[0], dist=1000)
+    m1 = ox.plot_graph_folium(G, opacity=0)
 
-    ox.plot_graph(G)
-    plt.show()
-
-    all_segments = []
+    all_segments, all_segments_time = [], []
     # 得到所有轨迹的分段结果
     for track_id, track_values in trajectories.items():
         # 去掉异常轨迹点
@@ -138,8 +222,28 @@ def plot_corner_by_cluster(trajectories):
                                                   segment_distance=0.5)
         segments, segments_time = segments_result["segments"], segments_result["segments_time"]
         all_segments.extend(segments)
+        all_segments_time.extend(segments_time)
 
-    a = 1
+        # 绘制分段结果
+        # plot_segments(segments, m1, track_id)
+
+    # 得到带有速度矢量的点集
+    points_with_velocity = get_points_with_velocity(all_segments, all_segments_time)
+    # plot_points_with_velocity(points_with_velocity, m1)
+
+    # 绘制指定区域网格
+    left_up_point, right_down_point, grid_size = (-10.899355, -37.096252), (-10.927514, -37.043267), 100
+    plot_grid(left_up_point, right_down_point, grid_size, m1)
+
+    # 按每个网格一个颜色绘制路径点
+    grid_point_struct = get_grid_point_struct(left_up_point, right_down_point, grid_size=grid_size, points_with_velocity=points_with_velocity)
+    # plot_points_in_which_grid(grid_point_struct, m1)
+
+    grid_points_struct_with_labels = cluster_grid_points(grid_point_struct)
+    plot_points_with_cluster_label(grid_points_struct_with_labels, m1, left_up_point, grid_size)
+
+    filepath = "find_corner.html"
+    m1.save(filepath)
 
 
 def plot_data(trajectories):

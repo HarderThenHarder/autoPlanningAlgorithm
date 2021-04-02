@@ -8,6 +8,8 @@ import datetime
 import numpy as np
 import math
 from Utils import Utils
+from sklearn.cluster import DBSCAN
+from Constance import *
 
 
 def get_distance(v1, v2):
@@ -89,7 +91,7 @@ def remove_stop_points(track_id: int, track_values: dict, min_delta_dist, min_de
 
     # 遍历轨迹，寻找出相邻重合的重合点，从原轨迹中去掉这些重复点
     while i < len(origin_positions):
-        distance = geodesic(origin_positions[i], current_point)
+        distance = geodesic(origin_positions[i], current_point).km
         if distance <= min_distance_threshold:
             stop_points.append(origin_positions[i])
             stop_time_list.append(time_list[i])
@@ -118,7 +120,7 @@ def remove_stop_points(track_id: int, track_values: dict, min_delta_dist, min_de
             j = i + 1
             # 从 i+1 开始，一直向后遍历，找到距离大于最小阈值的最近轨迹点
             while j < len(points_without_stop_points):
-                distance = geodesic(points_without_stop_points[i], points_without_stop_points[j])
+                distance = geodesic(points_without_stop_points[i], points_without_stop_points[j]).km
                 # 若当前点（j点）到i点距离大于预设判断距离，则对该轨迹片段进行类型判断
                 if distance >= min_delta_dist:
                     # 求从i点到最近大于距离阈值点j共消耗的时间
@@ -166,6 +168,88 @@ def smooth_trajectory(track_id, track_values, fit_threshold):
     pass
 
 
+def cluster_grid_points(grid_point_struct, cluster_method='dbscan'):
+    """
+    将每一个格子内的点按速度矢量进行聚类，返回每一个格子内最终聚类出来的个数。
+    :param cluster_method: 聚类方法
+    :param grid_point_struct: 格子-点结构体 -> [[[({'location': (x, y)}, {'velocity'}: (vx, vy), ...]), ...], ...]
+    :return: 加入每一个点被聚类后的标签的格子-点结构体
+    """
+    cluster = None
+
+    if cluster_method == 'dbscan':
+        radians_eps = math.radians(15)    # 转角N°为epsilon
+        cluster = DBSCAN(eps=radians_eps, min_samples=5)
+
+    grid_width, grid_height = len(grid_point_struct[0]), len(grid_point_struct)
+    grid_points_struct_with_labels = [[[] for _ in range(grid_width)] for _ in range(grid_height)]
+
+    for i in range(len(grid_point_struct)):
+        for j in range(len(grid_point_struct[0])):
+            velocity_list = [p['velocity'] for p in grid_point_struct[i][j]]
+            direction_list, speed_list = [], []
+            for v in velocity_list:
+                r, d = Utils.transfer2polar(v[0], v[1])
+                direction_list.append([r])
+                speed_list.append([d])
+
+            if len(direction_list):
+                result = cluster.fit(direction_list)
+                labels = result.labels_
+            else:
+                labels = []
+
+            for idx in range(len(grid_point_struct[i][j])):
+                point = grid_point_struct[i][j][idx]
+                struct = {'location': point['location'], 'velocity': point['velocity'], 'label': labels[idx]}
+                grid_points_struct_with_labels[i][j].append(struct)
+
+    return grid_points_struct_with_labels
+
+
+def get_grid_location_by_index(height_idx, width_idx, grid_size, left_up_point):
+    """
+    根据格子索引计算格子左上角点的经纬度坐标。
+    :param height_idx: 格子纵向索引
+    :param width_idx: 格子横向索引
+    :param grid_size: 格子宽度（m）
+    :param left_up_point: 区域左上角坐标点经纬度
+    :return: 格子左上角经纬度，格子右下角经纬度
+    """
+    delta_coord = grid_size * meter2coord
+    grid_left_up = (left_up_point[0] - height_idx * delta_coord, left_up_point[1] + width_idx * delta_coord)
+    grid_right_down = (grid_left_up[0] - delta_coord, grid_left_up[1] + delta_coord)
+
+    return grid_left_up, grid_right_down
+
+
+def get_grid_point_struct(left_up_point, right_bottom_point, grid_size, points_with_velocity):
+    """
+    将指定区域按照规定大小进行网格切割。
+    :param points_with_velocity: 带有速度的点集
+    :param left_up_point: 规定区域左上角点
+    :param right_bottom_point: 规定区域右下角点
+    :param grid_size: 网格边长（m）
+    :return: 返回每一个grid中包含哪些点
+    """
+    delta_coord = grid_size * meter2coord
+
+    grid_width = int(abs(right_bottom_point[1] - left_up_point[1]) / delta_coord)
+    grid_height = int(abs(left_up_point[0] - right_bottom_point[0]) / delta_coord)
+    grid_points_struct = [[[] for _ in range(grid_width)] for _ in range(grid_height)]
+
+    for point in points_with_velocity:
+        location = point['location']
+        # 判断点是否在规定网格区域内，若在区域内，把每一个点加入到对应网格中去
+        if right_bottom_point[0] < location[0] < left_up_point[0] and left_up_point[1] < location[1] < right_bottom_point[1]:
+            relative_latitude, relative_longitude = abs(location[0] - left_up_point[0]), abs(location[1] - left_up_point[1])
+            grid_width_idx, grid_height_idx = int(relative_longitude / delta_coord), int(relative_latitude / delta_coord)
+            if grid_width_idx < grid_width and grid_height_idx < grid_height:
+                grid_points_struct[grid_height_idx][grid_width_idx].append(point)
+
+    return grid_points_struct
+
+
 def get_trajectory_segments(track_values, segment_time=1, segment_angle=60, segment_distance=1):
     """
     根据时间和转角对一条轨迹进行分段。
@@ -178,7 +262,7 @@ def get_trajectory_segments(track_values, segment_time=1, segment_angle=60, segm
     origin_positions, time_list = track_values["positions"], track_values["time_list"]
 
     if len(origin_positions) <= 2:
-        return {"segments": origin_positions, "segments_time": time_list}
+        return {"segments": [origin_positions], "segments_time": [time_list]}
 
     segments, segments_time = [], []
     temp_segment, temp_time_list = [], []
@@ -188,7 +272,7 @@ def get_trajectory_segments(track_values, segment_time=1, segment_angle=60, segm
         # 若该 segment 中轨迹点数目还不足2个，则填满2个后再计算
         if len(temp_segment) < 2:
             # 若新点和旧点之间的距离大于分割距离，则把旧点给弹出删掉
-            if len(temp_segment) == 1 and geodesic(temp_segment[-1], origin_positions[i]) > segment_distance:
+            if len(temp_segment) == 1 and geodesic(temp_segment[-1], origin_positions[i]).km > segment_distance:
                 temp_segment.pop(0)
                 temp_time_list.pop(0)
             temp_segment.append(origin_positions[i])
@@ -203,7 +287,7 @@ def get_trajectory_segments(track_values, segment_time=1, segment_angle=60, segm
         new_relative_pos = Utils.get_relative_pos(temp_segment[-1], origin_positions[i])
         new_heading, _ = Utils.transfer2polar(new_relative_pos[0], new_relative_pos[1])
         time_used = get_hours_from_two_time_string(temp_time_list[-1], time_list[i])
-        distance = geodesic(temp_segment[-1], origin_positions[i])
+        distance = geodesic(temp_segment[-1], origin_positions[i]).km
 
         # 如果转向超过阈值或等待时间超过阈值，则划分为新的一段 segment
         if abs(new_heading - temp_heading) > math.radians(segment_angle) or time_used > segment_time or distance > segment_distance:
@@ -220,9 +304,35 @@ def get_trajectory_segments(track_values, segment_time=1, segment_angle=60, segm
         segments.append(temp_segment)
         segments_time.append(temp_time_list)
 
-    result = {"segments": segments, "segments_time": segment_time}
+    result = {"segments": segments, "segments_time": segments_time}
 
     return result
+
+
+def get_points_with_velocity(segments, segments_time):
+    """
+    将所有segment中的点都提取出速度。
+    :param segments_time: 轨迹分段时间列表
+    :param segments: 轨迹段列表
+    :return: 带有速度的点集 -> {'location': [x, y], 'velocity': [vx, vy]}
+    """
+    all_points = []
+    for segment, time_list in zip(segments, segments_time):
+        if len(segment) < 2:
+            continue
+
+        for i in range(len(segment) - 1):
+            relative_pos = Utils.get_relative_pos(segment[i], segment[i+1])
+            if relative_pos[0] == 0 and relative_pos[1] == 0:
+                continue
+            normalize_vector = Utils.normalize(relative_pos)
+            time_used = get_hours_from_two_time_string(time_list[i], time_list[i+1])
+            distance = geodesic(segment[i], segment[i+1]).km
+            speed = distance / time_used
+            velocity = [speed * normalize_vector[0], speed * normalize_vector[1]]
+            all_points.append({'location': segment[i], 'velocity': velocity})
+
+    return all_points
 
 
 if __name__ == '__main__':
