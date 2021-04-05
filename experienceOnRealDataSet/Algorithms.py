@@ -7,9 +7,9 @@ from geopy.distance import geodesic
 import datetime
 import numpy as np
 import math
-from Utils import Utils
+from experienceOnRealDataSet.Utils import Utils
 from sklearn.cluster import DBSCAN
-from Constance import *
+from experienceOnRealDataSet.Constance import *
 
 
 def get_distance(v1, v2):
@@ -69,7 +69,7 @@ def remove_stop_points(track_id: int, track_values: dict, min_delta_dist, min_de
     """
     检测出轨迹中的停驻点，返回停住点坐标并将原轨迹点中删除这些停驻点。
     停驻点共两种情况：1. 多个点重合在一个点。2. 多个轨迹点点围绕着某一个点分布（景区点）。
-    停住点参考资料：https://www.zhihu.com/people/who-u
+    停住点参考资料：https://zhuanlan.zhihu.com/p/133239440
     :param min_centroid_threshold: 判断两个中心点是否为同一个中心点的阈值
     :param min_delta_time: 判断多点围绕的停留点情况时的最小时间间隔（小时）
     :param min_delta_dist: 判断多点围绕的停留点情况时的最小距离间隔（公里）
@@ -178,23 +178,18 @@ def cluster_grid_points(grid_point_struct, cluster_method='dbscan'):
     cluster = None
 
     if cluster_method == 'dbscan':
-        radians_eps = math.radians(15)    # 转角N°为epsilon
-        cluster = DBSCAN(eps=radians_eps, min_samples=5)
+        cluster = DBSCAN(eps=15, min_samples=3)
 
     grid_width, grid_height = len(grid_point_struct[0]), len(grid_point_struct)
     grid_points_struct_with_labels = [[[] for _ in range(grid_width)] for _ in range(grid_height)]
 
     for i in range(len(grid_point_struct)):
         for j in range(len(grid_point_struct[0])):
-            velocity_list = [p['velocity'] for p in grid_point_struct[i][j]]
-            direction_list, speed_list = [], []
-            for v in velocity_list:
-                r, d = Utils.transfer2polar(v[0], v[1])
-                direction_list.append([r])
-                speed_list.append([d])
+            points = grid_point_struct[i][j]
+            velocity_list = np.array([p['velocity'] for p in points])
 
-            if len(direction_list):
-                result = cluster.fit(direction_list)
+            if len(velocity_list):
+                result = cluster.fit(velocity_list)
                 labels = result.labels_
             else:
                 labels = []
