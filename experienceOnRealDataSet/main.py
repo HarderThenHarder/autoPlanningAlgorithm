@@ -104,7 +104,7 @@ def plot_corner_by_cluster(trajectories):
 
     if not os.path.exists('./cache/grid_point_struct_with_labels.pkl'):
         with open('./cache/grid_point_struct_with_labels.pkl', 'wb') as f:
-            pickle.dump(grid_point_struct, f)
+            pickle.dump(grid_points_struct_with_labels, f)
 
     plot_points_with_cluster_label(grid_points_struct_with_labels, m1, left_up_point, grid_size)
 

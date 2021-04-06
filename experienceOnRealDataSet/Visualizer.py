@@ -259,11 +259,13 @@ def plot_points_with_cluster_label(grid_points_struct_with_labels, map_obj, left
 
             # 统计该格子内数据点一共被聚成了多少类，并为每一类随机分配一个颜色
             labels_in_this_grid = [point['label'] for point in grid_points_struct_with_labels[i][j]]
-            labels_num = max(labels_in_this_grid) + 2  # 还需要考虑-1类别
+            unique_label = np.unique(labels_in_this_grid)
+            labels_num = len(unique_label)
+            no_noise_labels_num = len(unique_label[unique_label >= 0])
             label_color_list = [hex(random.randint(0, 16 ** 6))[2:].zfill(6) for _ in range(labels_num)]
 
-            # 若聚类结果大于3个（但包含异常值，所以判断时要 > 4），则该格子中可能存在路口，绘制矩形框
-            if labels_num >= 3:
+            # 若聚类结果大于3个（不包含异常值类别），则该格子中可能存在路口，绘制矩形框
+            if no_noise_labels_num >= 3:
                 grid_left_up, grid_right_down = get_grid_location_by_index(i, j, grid_size, left_up_point)
                 MapPencil.draw_rectangle(grid_left_up, grid_right_down, map_obj)
 
