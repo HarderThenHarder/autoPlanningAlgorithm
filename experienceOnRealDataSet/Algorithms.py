@@ -10,6 +10,7 @@ import math
 from experienceOnRealDataSet.Utils import Utils
 from sklearn.cluster import DBSCAN
 from experienceOnRealDataSet.Constance import *
+from experienceOnRealDataSet.Logger import *
 
 
 def get_distance(v1, v2):
@@ -168,6 +169,7 @@ def smooth_trajectory(track_id, track_values, fit_threshold):
     pass
 
 
+@time_log
 def cluster_grid_points(grid_point_struct, cluster_method='dbscan'):
     """
     将每一个格子内的点按速度矢量进行聚类，返回每一个格子内最终聚类出来的个数。

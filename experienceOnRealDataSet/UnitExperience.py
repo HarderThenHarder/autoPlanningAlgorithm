@@ -16,6 +16,11 @@ from experienceOnRealDataSet.Visualizer import *
 
 
 def visualize_velocity_distribute(grid_idx):
+    """
+    可视化带有速度线的轨迹点。
+    :param grid_idx: 地图格索引
+    :return: None
+    """
     file_name = "./cache/grid_point_struct_with_labels.pkl"
 
     if not os.path.exists(file_name):
@@ -30,6 +35,10 @@ def visualize_velocity_distribute(grid_idx):
 
 
 def plot_corner():
+    """
+    可视化预测可能存在路口的网格点。
+    :return: None
+    """
     file_name = "./cache/grid_point_struct_with_labels.pkl"
 
     if not os.path.exists(file_name):
@@ -49,5 +58,5 @@ def plot_corner():
 
 
 if __name__ == '__main__':
-    # visualize_velocity_distribute((4, 36))
+    # visualize_velocity_distribute((11, 48))
     plot_corner()

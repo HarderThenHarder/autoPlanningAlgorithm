@@ -241,7 +241,7 @@ def plot_points_in_which_grid(grid_points_struct, map_obj):
             for point in grid_points_struct[i][j]:
                 MapPencil.draw_point(point['location'], map_obj, popup='(%d, %d)' % (i, j), color="#%s" % random_color)
 
-
+@time_log
 def plot_points_with_cluster_label(grid_points_struct_with_labels, map_obj, left_up_point, grid_size):
     """
     根据速度方向对每一个网格内的路径点进行聚类，将不同label的点用不同颜色绘制。

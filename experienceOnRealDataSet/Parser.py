@@ -5,8 +5,10 @@
 
 import pandas as pd
 import numpy as np
+from experienceOnRealDataSet.Logger import *
 
 
+@time_log
 def parse_csv_to_trajectory_dict(position_file_name, summary_file_name, top_k=-1):
     """
     将.csv文件中的数据解析成字典序列。
@@ -36,6 +38,6 @@ def parse_csv_to_trajectory_dict(position_file_name, summary_file_name, top_k=-1
     if top_k == -1:
         return trajectory_dict
 
-    """ 筛选出包含轨迹数目最多的 N 条trajectory """
+    """ 筛选出包含轨迹点数目最多的 N 条trajectory """
     sorted_dict = sorted(trajectory_dict.items(), key=lambda x: len(x[1]), reverse=True)
     return dict(sorted_dict[:top_k])
